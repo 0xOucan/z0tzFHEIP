@@ -15,6 +15,8 @@ These drafts are **pre-discussion** — they've been scoped against real impleme
 | 0007 | [Ciphertext integrity binding in signed digests](./FHEIP-0007-ciphertext-integrity-binding.md) | Core | Draft |
 | 0008 | [FHERC-20 wrapper decimal-alignment standard](./FHEIP-0008-fherc20-wrapper-decimal-alignment.md) | ERC | Draft |
 | 0009 | [Canonical self-call binding helper for relayer-submitted FHE ops](./FHEIP-0009-fhe-self-call-binding-helper.md) | Core | Draft |
+| 0010 | [Confidential vault compliance gate interface](./FHEIP-0010-confidential-vault-compliance-gate.md) | ERC | Draft |
+| 0011 | [Per-account encrypted position snapshots for confidential vaults](./FHEIP-0011-confidential-vault-position-snapshots.md) | ERC | Draft |
 
 Naming: `FHEIP-XXXX-short-kebab-title.md`, 4-digit zero-padded, incrementing.
 
@@ -26,6 +28,7 @@ Naming: `FHEIP-XXXX-short-kebab-title.md`, 4-digit zero-padded, incrementing.
 - **0007** (ciphertext binding) and **0009** (self-call) together defeat the full amount-substitution attack class: 0007 prevents the relayer from swapping the ciphertext, 0009 prevents the relayer from becoming the ACL holder.
 - **0002** (solvency primitive) and **0003** (event schema) together give any confidential-ledger dapp a full "safe debit + legible history" stack. The two events are intentionally disjoint: 0003's `ConfidentialDebit(accountKey, destination, encAmount, op)` is the indexer primitive for flow reconstruction; 0002's `ConfidentialDebitResult(accountKey, encSuccessFlag, encAmount)` is the viewer primitive for solvency introspection. A dapp can emit both in the same tx without collision.
 - **0008** (wrapper decimals) references **0003** for the event-emission pattern.
+- **0010** (compliance gate) and **0011** (position snapshots) together standardize the confidential-vault wallet surface that emerged from the Z0tz × Tezcatli DeFi integration: 0010 is the AML/KYC choke point in front of shield/unshield, 0011 is the rich per-position dashboard surface behind it. Both are vendor-neutral and opt-in; a vault may implement either, both, or neither. 0011 grants ACL via the FHEIP-0001 viewer-permit path, so a passkey wallet decrypts dashboard handles without an extra signing key.
 
 ## Companion research documents
 
