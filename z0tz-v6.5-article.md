@@ -141,6 +141,28 @@ Each system validates parts of what the others claim. Z0tz is a case study in wh
 
 **Nine new contracts across three chains, one env var to roll back.** V6 contracts unchanged. Paymaster flag flip reverts the whole stack.
 
+## Tezcatli composition — confidential DeFi and on-chain compliance
+
+V6.5 closes the holder leak. The next composition target is DeFi, and it lands as a partnership: **Tezcatli's confidential vault stack** sits on top of V6.5 with no changes to the wallet's privacy semantics. Z0tz routes deposits and withdraws through the same stealth-as-proxy template that CCTP uses; Tezcatli supplies the FHE-encrypted vault primitive (share/asset accounting on `euint64` handles), an Aave V3 strategy adapter, and a risk policy that caps the strategy's allocation. Live on Arbitrum Sepolia today against Aave V3 USDC; ERC-4626 and Morpho on the roadmap.
+
+The composition is fully consistent with the V6.5 thesis. The user's smart account never appears in the vault. A fresh DeFi stealth derives from `(passkey, originChainId, vaultChainId, vaultAddress, index)` per position — the salt packs both chain IDs so a deposit originated from Base into the Arbitrum vault carries its origin in the wallet's view forever. Withdrawals auto-route home: ledger A → vault on B → ephemeral on B → CCTP burn → ephemeral on A → ledger A, with the vault never learning the wallet address on either side.
+
+A coordinator-driven strategy keeps idle USDC moving. After every deposit the relayer signs `coordinatorDeployToStrategy(adapter, idle, minSharesOut)` so freshly arrived funds land in Aave; before every withdraw it signs `coordinatorRedeemFromStrategy` so the wrapper has plaintext liquidity for the unshield. The user's stealth has no role beyond a single deposit; the relayer is the only party that persists across deposits, so it's the right place to maintain the vault's strategy invariants.
+
+### Compliance posture — three layers, all default-on except KYC
+
+The Tezcatli integration also shipped Z0tz's compliance lane. Three components, each operating at a different boundary:
+
+- **`Z0tzComplianceGate` (FHEIP-0010, on-chain).** A pure predicate consulted at every shield and unshield. `canShield(token, depositor, amount)` and `canUnshield(token, beneficiary, amount)` answer yes/no with a typed reason code (0..7 per FHEIP-0010); the gate has zero token-moving authority. Default-permissive (empty deny-list ⇒ everyone allowed) with `enabled` defaulting to false during bring-up. The gate is composed of a `MockZ0tzKycRegistry` (yes/no oracle with optional expiry, no PII), a `MockOFACSanctionsList` (block-list consulted before the gate's own deny-list), and an append-only `Z0tzDepositorRegistry`. Two-step admin transfers throughout (Ownable2Step style).
+- **Geofencing (relayer HTTP layer, default-on).** Restricted regions hit a 403 at the relayer before anything reaches chain. Country list mirrors the published OFAC sanctions set; localhost and private-network requests bypass so local development isn't broken.
+- **KYC supplier (off-chain, opt-in per integration).** Bridges to standard providers (Sumsub, Persona, Chainalysis KYT) when a dApp or institution integrating Z0tz as an SDK needs it. Z0tz the wallet never demands KYC from end users; integrators flip it on for their own users. Z0tz stores a yes/no boolean and an optional expiry — no documents, no biometrics.
+
+The gate is pre-flighted via `eth_call` before the wallet pays any gas: a denied operation surfaces a typed reason in the GUI ("KYC required", "OFAC block-list", "daily cap exceeded") instead of a raw selector. Z0tz never holds, freezes, or auto-returns flagged funds. There is no admin who can release seized assets and no compliance custody vault. The gate's job is to refuse — when it does, nothing moves and the user keeps their keys.
+
+### Why this fits the composition bet
+
+The Tezcatli integration matters less for the integration itself than for what it validates. Stealth-as-proxy works for permissionless DeFi the same way it works for CCTP — the external protocol (Aave) sees a one-time stealth, never the user's smart account, and the privacy properties of V6.5 carry forward unchanged. Compliance, in turn, is enforced at the integration boundary, not at the wallet boundary: the gate consults *before* the wallet builds a UserOp, which means a compliance refusal costs nothing and the wallet itself stays a pure non-custodial primitive.
+
 ## Contribution to Fhenix and Ethereum
 
 The concrete deliverables — nine contracts, three testnets, measured gas — are less important than the template that emerges from them. What Z0tz V6.5 contributes back to the ecosystem, independent of whether Z0tz itself scales:

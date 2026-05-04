@@ -67,6 +67,22 @@ What V6.5 proves: a stealth address can serve as the user's *proxy* when interac
 
 CCTP is the first working instance. The same three parts apply without modification to any permissionless EVM protocol — a DEX swap, a lending deposit, an NFT mint, a governance vote, an airdrop claim. That generality is what makes this a contribution to the Fhenix-and-Ethereum privacy stack rather than a single-wallet feature.
 
+### Tezcatli vault composition is the second working instance
+
+The second concrete instance of the stealth-as-proxy template is Tezcatli's confidential vault stack — an FHE-encrypted vault primitive (share/asset accounting on `euint64` handles) with an Aave V3 strategy adapter, plugged into V6.5 with no wallet-side privacy changes. A fresh DeFi stealth derives from `(passkey, originChainId, vaultChainId, vaultAddress, index)`, the ledger debits to it, the stealth deposits, and the stealth dies. The vault sees one ephemeral depositor per deposit and never learns the user's smart-account address. On withdraw the wallet routes funds back to the chain the position was opened from (ledger A → vault on B → CCTP → ledger A), reusing the same cross-chain template CCTP cashouts already use.
+
+This matters as comparison evidence because a vault has internal state CCTP doesn't — shares, principal, fees, snapshots — and the wallet has to display all of those without leaking through a local cache or a per-position state map. V6.5's DeFi page reads four numbers per position straight from chain on every render (`principalDepositedOf`, `netPositionSnapshotOf`, `pendingYieldSnapshotOf`, plus the live Aave APY). No local cost-basis cache, no SQLite of historical events, no client-side bookkeeping that could leak through a logfile.
+
+### Compliance at the integration boundary, not the wallet
+
+The Tezcatli composition also lands the part of the privacy stack the V6.5 architecture deliberately did not address: an explicit compliance posture. The position is that a wallet that hides amounts and identities cannot also be the place that decides whether a sanctioned address gets to use the system; that decision belongs at the boundary. Three layers:
+
+- **`Z0tzComplianceGate` (FHEIP-0010, on-chain).** Pure predicate consulted at every shield and unshield. `canShield` / `canUnshield` answer yes/no with a typed reason code (0..7). The gate has zero token-moving authority. Composed of a KYC registry (yes/no oracle, no PII), a sanctions block-list, and an append-only depositor registry. Default-permissive (empty deny-list ⇒ everyone allowed); `enabled` defaults to false during bring-up. Two-step admin transfers (Ownable2Step style).
+- **Geofencing (relayer HTTP layer, default-on).** Restricted regions hit a 403 before anything reaches chain. Country list mirrors the published OFAC sanctions set.
+- **KYC supplier (off-chain, opt-in per integration).** Bridges to Sumsub, Persona, Chainalysis KYT when an SDK integrator needs it. Z0tz the wallet never demands KYC from end users.
+
+The wallet pre-flights the gate via `eth_call` before paying any gas, so a denied operation costs nothing and the GUI surfaces a typed reason instead of a raw selector. Z0tz never holds, freezes, or auto-returns flagged funds; there is no admin who can release seized assets and no compliance custody vault. The gate's job is to refuse — when it does, nothing moves and the user keeps their keys.
+
 ## 5. Comparison matrix
 
 Blank = out of declared scope.
@@ -81,6 +97,8 @@ Blank = out of declared scope.
 | Cross-chain | Research frontier | — | CCTP V2 + stealth pair (working, three flows) |
 | Anonymity set | Adapter batching | All addresses | Pooled vault + shared sweeper |
 | Composability with unmodified protocols | Adapter | UTXO semantics diverge from ERC-20 | Stealth pre-stage + sweeper post-mix |
+| Confidential DeFi composition | Solver-routed (planned) | Out of scope | Tezcatli vault on Aave V3 (working, arb-sepolia) |
+| Compliance posture | Not specified | Selective disclosure (per-tx) | On-chain gate (FHEIP-0010) + geofence + opt-in KYC |
 | Key model | Not specified | Not specified | Passkey (P-256, WebAuthn-compatible) |
 | Deployment | Architecture paper | Proposal | Testnet on 3 chains, gas measured |
 | TEE dependency | Yes (cross-provider) | No | No |

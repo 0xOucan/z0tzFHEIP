@@ -17,6 +17,7 @@ These drafts are **pre-discussion** — they've been scoped against real impleme
 | 0009 | [Canonical self-call binding helper for relayer-submitted FHE ops](./FHEIP-0009-fhe-self-call-binding-helper.md) | Core | Draft |
 | 0010 | [Confidential vault compliance gate interface](./FHEIP-0010-confidential-vault-compliance-gate.md) | ERC | Draft |
 | 0011 | [Per-account encrypted position snapshots for confidential vaults](./FHEIP-0011-confidential-vault-position-snapshots.md) | ERC | Draft |
+| 0012 | [Compliance-aware cash-in / cash-out boundaries](./FHEIP-0012-compliance-aware-cash-in-cash-out.md) | ERC | Draft |
 
 Naming: `FHEIP-XXXX-short-kebab-title.md`, 4-digit zero-padded, incrementing.
 
@@ -29,6 +30,7 @@ Naming: `FHEIP-XXXX-short-kebab-title.md`, 4-digit zero-padded, incrementing.
 - **0002** (solvency primitive) and **0003** (event schema) together give any confidential-ledger dapp a full "safe debit + legible history" stack. The two events are intentionally disjoint: 0003's `ConfidentialDebit(accountKey, destination, encAmount, op)` is the indexer primitive for flow reconstruction; 0002's `ConfidentialDebitResult(accountKey, encSuccessFlag, encAmount)` is the viewer primitive for solvency introspection. A dapp can emit both in the same tx without collision.
 - **0008** (wrapper decimals) references **0003** for the event-emission pattern.
 - **0010** (compliance gate) and **0011** (position snapshots) together standardize the confidential-vault wallet surface that emerged from the Z0tz × Tezcatli DeFi integration: 0010 is the AML/KYC choke point in front of shield/unshield, 0011 is the rich per-position dashboard surface behind it. Both are vendor-neutral and opt-in; a vault may implement either, both, or neither. 0011 grants ACL via the FHEIP-0001 viewer-permit path, so a passkey wallet decrypts dashboard handles without an extra signing key.
+- **0012** (compliance-aware cash-in / cash-out) extends 0010 from the vault boundary back to the wallet boundary. Where 0010 defines the predicate every confidential vault must consult, 0012 specifies how a wallet pre-flights that predicate via `eth_call` *before* paying gas and surfaces the typed reason code in the user's flow. Together with 0010 they form a complete refusal pipeline: the wallet refuses to build the UserOp, the vault refuses to integrate flagged funds, and neither holds anyone's tokens to do it.
 
 ## Companion research documents
 
@@ -36,6 +38,7 @@ Alongside the FHEIPs, this repo carries three research-grade pieces that ground 
 
 | Document | Purpose |
 |---|---|
-| [Z0tz V6.5 article](./z0tz-v6.5-article.md) | Full architectural writeup of Z0tz V6.5, structured after the Fhenix *Fluton × Fhenix* announcement — confidentiality + anonymity via FHE, stealth, pseudonymous ledger, and CCTP composition. |
-| [Z0tz V6.5 essay](./z0tz-v6.5-essay.md) | Narrative essay on the V6.5 design: "Privacy is a stack, not a feature" — long-form prose on the composition bet that ties FHE, stealth, pooled vault, and permissionless bridges into one wallet. |
-| [Z0tz vs Fluton vs UTXO comparison](./z0tz-vs-fluton-utxo-comparison.md) | Research comparison across three approaches to confidential ledgers — Fluton (FHE + smart-account anonymity + solver routing), UTXO confidential tokens (ZK commitments with optional wormhole), and Z0tz V6.5. Maps the design space without ranking. |
+| [Z0tz V6.5 article](./z0tz-v6.5-article.md) | Full architectural writeup of Z0tz V6.5, structured after the Fhenix *Fluton × Fhenix* announcement — confidentiality + anonymity via FHE, stealth, pseudonymous ledger, CCTP composition, and the Tezcatli confidential-DeFi + compliance composition. |
+| [Z0tz V6.5 essay](./z0tz-v6.5-essay.md) | Narrative essay on the V6.5 design: "Privacy is a stack, not a feature" — long-form prose on the composition bet that ties FHE, stealth, pooled vault, permissionless bridges, the Tezcatli vault stack, and the on-chain compliance gate into one wallet. |
+| [Z0tz vs Fluton vs UTXO comparison](./z0tz-vs-fluton-utxo-comparison.md) | Research comparison across three approaches to confidential ledgers — Fluton (FHE + smart-account anonymity + solver routing), UTXO confidential tokens (ZK commitments with optional wormhole), and Z0tz V6.5. Maps the design space without ranking; matrix includes confidential-DeFi composition and compliance posture axes. |
+| [Tezcatli × Z0tz integration](./tezcatli-z0tz-integration.md) | Concrete integration spec for the Z0tz × Tezcatli composition — topology, on-chain primitives, HKDF DeFi stealth derivation, same-chain and cross-chain deposit / withdraw flows, the compliance gate consultation, the no-cache display contract, and the operator playbook. |
